@@ -73,18 +73,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     let filename = &args[1];
 
-    // Prompt the user for username
-    print!("Enter username: ");
-    io::stdout().flush()?;
-    let mut username = String::new();
-    io::stdin().read_line(&mut username)?;
+    // Read the CSV file and prompt for username and password if the file exists
+    if Path::new(filename).exists() {
+        // Prompt the user for username
+        print!("Enter username: ");
+        io::stdout().flush()?;
+        let mut username = String::new();
+        io::stdin().read_line(&mut username)?;
 
-    // Prompt the user for password
-    print!("Enter password: ");
-    io::stdout().flush()?;
-    let mut password = String::new();
-    io::stdin().read_line(&mut password)?;
+        // Prompt the user for password
+        print!("Enter password: ");
+        io::stdout().flush()?;
+        let mut password = String::new();
+        io::stdin().read_line(&mut password)?;
 
-    // Read the CSV file and verify password hash
-    read_csv_file(filename, username.trim(), password.trim())
+        // Read the CSV file and verify password hash
+        read_csv_file(filename, username.trim(), password.trim())?;
+    } else {
+        eprintln!("Error! Password database not found!");
+        process::exit(1);
+    }
+
+    Ok(())
 }
