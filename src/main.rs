@@ -1,11 +1,18 @@
 use argon2::{password_hash::PasswordHash, password_hash::PasswordVerifier, Argon2};
-use csv::StringRecord;
 use std::env;
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, Write};
+use std::path::Path;
+use std::process;
 
 fn read_csv_file(filename: &str, username: &str, password: &str) -> Result<(), Box<dyn Error>> {
+    // Check if the file exists
+    if !Path::new(filename).exists() {
+        eprintln!("Error! Password database not found!");
+        process::exit(1);
+    }
+
     // Open the CSV file
     let file = File::open(filename)?;
     let mut rdr = csv::ReaderBuilder::new()
@@ -28,26 +35,33 @@ fn read_csv_file(filename: &str, username: &str, password: &str) -> Result<(), B
 
     // Display error if username not found
     if password_hash.is_none() {
-        eprintln!("Error: Username not found.");
+        eprintln!("Error! Access denied!");
         return Ok(());
     }
 
     // Verify password hash with the input password
     let argon2 = Argon2::default();
-    let parsed_hash = match PasswordHash::new(&password_hash.unwrap()) {
+    let password_hash_unwrapped = password_hash.unwrap();
+    let parsed_hash = match PasswordHash::new(&password_hash_unwrapped) {
         Ok(parsed_hash) => parsed_hash,
         Err(err) => return Err(err.to_string().into()),
     };
-    if argon2
-        .verify_password(password.as_bytes(), &parsed_hash)
-        .is_ok()
-    {
-        println!("Success! Password verified.");
+
+    // Call the verify_password function
+    if verify_password(&argon2, password, &parsed_hash) {
+        println!("Access granted!");
     } else {
-        eprintln!("Error: Incorrect password.");
+        eprintln!("Error! Access denied!");
     }
 
     Ok(())
+}
+
+// New function to verify the password
+fn verify_password(argon2: &Argon2, password: &str, parsed_hash: &PasswordHash) -> bool {
+    argon2
+        .verify_password(password.as_bytes(), parsed_hash)
+        .is_ok()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -55,7 +69,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         eprintln!("Usage: cargo run <filename>");
-        std::process::exit(1);
+        process::exit(1);
     }
     let filename = &args[1];
 
